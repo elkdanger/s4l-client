@@ -4,11 +4,16 @@ import org.mongodb.scala.{MongoClient, Observer, Document}
 import org.mongodb.scala.bson.BsonValue
 import uk.gov.hmrc.crypto.json.JsonDecryptor
 import uk.gov.hmrc.crypto.{CompositeSymmetricCrypto, Crypted}
+import scala.concurrent._
+import scala.concurrent.duration._
 
 
 class ResultObserver(val key : String) extends Observer[Document] {
+    private val prom : Promise[Boolean] = Promise[Boolean]()
+    
     def onComplete() : Unit = {
         println("Read Complete")
+        prom.success(true)
     }
 
     def onError(e: Throwable): Unit = {
@@ -28,6 +33,10 @@ class ResultObserver(val key : String) extends Observer[Document] {
             println()
         }}
     }
+
+    def future : Future[Boolean] = {
+        return prom.future
+    }
 }
 
 object App {
@@ -45,7 +54,7 @@ object App {
 
         val results = collection.find().subscribe(resultObserver)
 
-        Thread.sleep(2000)
+        Await.result(resultObserver.future, 20 seconds)
         mongoClient.close()
     }
 }
